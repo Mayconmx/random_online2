@@ -108,7 +108,13 @@ function App() {
         port: 443,
         debug: 0, // Desativado para evitar logs de erro no console do usuário
         config: {
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+          ]
         }
       });
 
@@ -371,8 +377,14 @@ function App() {
         {remotePeers.map(peer => (
           <div key={peer.id} className="video-cell">
             <video
-              ref={el => { if (el) el.srcObject = peer.stream }}
-              autoPlay playsInline
+              ref={el => {
+                if (el && peer.stream) {
+                  el.srcObject = peer.stream;
+                  el.play().catch(e => console.error("Remote video play error:", e));
+                }
+              }}
+              autoPlay
+              playsInline
               className={`filter-${activeFilter}`}
             />
           </div>
