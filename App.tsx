@@ -12,6 +12,13 @@ const VIDEO_FILTERS = [
   { id: FilterType.BLUR, name: 'Privado', icon: 'fa-eye-slash' },
 ];
 
+const REPORT_REASONS = [
+  { id: 'nudity', label: 'Conteúdo Sexual', icon: 'fa-user-slash' },
+  { id: 'violence', label: 'Agressividade', icon: 'fa-fist-raised' },
+  { id: 'hate', label: 'Discurso de Ódio', icon: 'fa-skull' },
+  { id: 'fake', label: 'Bot / Fake', icon: 'fa-robot' },
+];
+
 // Componente de Vídeo Isolado para evitar re-render loops e congelamentos
 const VideoPeer = ({ stream, isLocal = false, filter = 'normal' }: { stream: MediaStream | null, isLocal?: boolean, filter?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
