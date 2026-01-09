@@ -176,7 +176,11 @@ function App() {
     activeCallsRef.current.clear();
 
     // Register as waiting
-    await matchService.registerPresence(peerRef.current.id);
+    const { error: regError } = await matchService.registerPresence(peerRef.current.id);
+    if (regError) {
+      setChatState(p => ({ ...p, status: 'error', errorMessage: "Erro ao registrar presença. O banco de dados foi configurado?" }));
+      return;
+    }
 
     // Loop to find partner
     let attempts = 0;
@@ -187,7 +191,18 @@ function App() {
         return;
       }
 
-      const partnerId = await matchService.findRandomPeer(peerRef.current.id);
+      const { peerId: partnerId, error: searchError } = await matchService.findRandomPeer(peerRef.current.id);
+
+      if (searchError) {
+        console.error("Search error:", searchError);
+        // Only stop if it's a critical error (like table missing 404 or 42P01)
+        // For transient network errors, maybe we continue? 
+        // But for "Relation 'rooms' does not exist", we must stop.
+        if (searchError.code === '42P01' || searchError.message?.includes('does not exist')) {
+          setChatState(p => ({ ...p, status: 'error', errorMessage: "Erro crítico: Tabela 'rooms' não encontrada no Supabase." }));
+          return;
+        }
+      }
 
       if (partnerId) {
         console.log("Calling partner:", partnerId);
