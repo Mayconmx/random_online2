@@ -178,7 +178,11 @@ function App() {
     // Register as waiting
     const { error: regError } = await matchService.registerPresence(peerRef.current.id);
     if (regError) {
-      setChatState(p => ({ ...p, status: 'error', errorMessage: "Erro ao registrar presença. O banco de dados foi configurado?" }));
+      console.error("Presence Error:", regError);
+      const msg = typeof regError === 'object' && regError !== null && 'message' in regError
+        ? (regError as any).message
+        : JSON.stringify(regError);
+      setChatState(p => ({ ...p, status: 'error', errorMessage: `Erro de conexão: ${msg}` }));
       return;
     }
 

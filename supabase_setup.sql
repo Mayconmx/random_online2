@@ -12,24 +12,40 @@ create table if not exists rooms (
 alter table rooms enable row level security;
 
 -- Allow anyone to read waiting users
+drop policy if exists "Anyone can read waiting rooms" on rooms;
 create policy "Anyone can read waiting rooms"
   on rooms for select
   using (status = 'waiting');
 
+-- Allow users to read their OWN room (regardless of status - fixes upsert issues)
+drop policy if exists "Users can read own room" on rooms;
+create policy "Users can read own room"
+  on rooms for select
+  using (auth.uid() = user_id);
+
 -- Allow authenticated users to insert their own room
+drop policy if exists "Users can insert their own room" on rooms;
 create policy "Users can insert their own room"
   on rooms for insert
   with check (auth.uid() = user_id);
 
 -- Allow users to update their own room
+drop policy if exists "Users can update their own room" on rooms;
 create policy "Users can update their own room"
   on rooms for update
   using (auth.uid() = user_id);
 
 -- Allow users to delete their own room
+drop policy if exists "Users can delete their own room" on rooms;
 create policy "Users can delete their own room"
   on rooms for delete
   using (auth.uid() = user_id);
 
 -- Realtime subscription
-alter publication supabase_realtime add table rooms;
+do $$
+begin
+  alter publication supabase_realtime add table rooms;
+exception when duplicate_object then
+  null;
+end;
+$$;
