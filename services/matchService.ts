@@ -3,8 +3,10 @@ import { supabase } from './supabase';
 const TABLE = 'rooms';
 
 export const registerPresence = async (peerId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'User not authenticated' };
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError) console.error("Auth Session Error:", authError);
+    if (!session?.user) return { error: authError || 'User not authenticated (Session not found)' };
+    const user = session.user;
 
     // upsert: insert or update if constraint matches
     const { error } = await supabase
@@ -16,8 +18,9 @@ export const registerPresence = async (peerId: string) => {
 };
 
 export const updateStatus = async (status: 'waiting' | 'chatting') => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
 
     await supabase
         .from(TABLE)
@@ -46,8 +49,9 @@ export const findRandomPeer = async (myPeerId: string): Promise<{ peerId: string
 };
 
 export const removePresence = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
 
     await supabase
         .from(TABLE)
