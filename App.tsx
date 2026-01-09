@@ -20,7 +20,13 @@ const REPORT_REASONS = [
 ];
 
 // Componente de Vídeo Isolado para evitar re-render loops e congelamentos
-const VideoPeer = ({ stream, isLocal = false, filter = 'normal' }: { stream: MediaStream | null, isLocal?: boolean, filter?: string }) => {
+interface VideoPeerProps {
+  stream: MediaStream | null;
+  isLocal?: boolean;
+  filter?: string;
+}
+
+const VideoPeer: React.FC<VideoPeerProps> = ({ stream, isLocal = false, filter = 'normal' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
@@ -49,7 +55,17 @@ const VideoPeer = ({ stream, isLocal = false, filter = 'normal' }: { stream: Med
       else setDebugInfo('');
     }, 1000);
 
-    return () => clearInterval(interval);
+    const onAddTrack = () => setDebugInfo('');
+    const onRemoveTrack = () => { if (stream.getVideoTracks().length === 0) setDebugInfo('Sem vídeo'); };
+
+    stream.addEventListener('addtrack', onAddTrack);
+    stream.addEventListener('removetrack', onRemoveTrack);
+
+    return () => {
+      clearInterval(interval);
+      stream.removeEventListener('addtrack', onAddTrack);
+      stream.removeEventListener('removetrack', onRemoveTrack);
+    };
   }, [stream]);
 
   return (
@@ -209,7 +225,13 @@ function App() {
   const handleNewCall = (call: any) => {
     call.on('stream', (remoteStream: MediaStream) => {
       setRemotePeers(prev => {
-        if (prev.find(p => p.id === call.peer)) return prev;
+        // Update existing peer with new stream if id matches, or add new
+        const existing = prev.find(p => p.id === call.peer);
+        if (existing) {
+          if (existing.stream.id === remoteStream.id) return prev; // Exactly the same stream object
+          // Different stream object for same peer -> Update it
+          return prev.map(p => p.id === call.peer ? { ...p, stream: remoteStream } : p);
+        }
         return [...prev, { id: call.peer, stream: remoteStream }];
       });
       setChatState(p => ({ ...p, status: 'connected' }));
