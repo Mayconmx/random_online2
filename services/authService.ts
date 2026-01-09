@@ -48,7 +48,28 @@ export const signup = async (email: string, password: string, username: string):
 
   if (error) throw error;
   if (!data.user) throw new Error('Falha no cadastro');
-  if (!data.session) throw new Error('Conta criada, mas o login automático falhou. Verifique se "Confirm Email" está DESATIVADO no Supabase ou confirme seu email.');
+
+  // Se não vier sessão, pode ser que exija confirmação OU o usuário já exista.
+  // Tentamos fazer login automático para resolver.
+  if (!data.session) {
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (loginError || !loginData.session) {
+      // Se o login falhar também, aí sim é certeza que precisa confirmar email
+      throw new Error('Cadastro realizado! Porém, o Supabase exigiu confirmação de e-mail. Verifique sua caixa de entrada.');
+    }
+
+    // Se o login funcionou, retornamos o usuário logado
+    return {
+      id: loginData.user.id,
+      email: loginData.user.email!,
+      username: loginData.user.user_metadata?.username || username,
+      country: loginData.user.user_metadata?.country
+    };
+  }
 
   return {
     id: data.user.id,
