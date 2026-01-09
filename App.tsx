@@ -12,12 +12,61 @@ const VIDEO_FILTERS = [
   { id: FilterType.BLUR, name: 'Privado', icon: 'fa-eye-slash' },
 ];
 
-const REPORT_REASONS = [
-  { id: 'nudity', label: 'Conteúdo Sexual', icon: 'fa-user-slash' },
-  { id: 'violence', label: 'Agressividade', icon: 'fa-fist-raised' },
-  { id: 'hate', label: 'Discurso de Ódio', icon: 'fa-skull' },
-  { id: 'fake', label: 'Bot / Fake', icon: 'fa-robot' },
-];
+// Componente de Vídeo Isolado para evitar re-render loops e congelamentos
+const VideoPeer = ({ stream, isLocal = false, filter = 'normal' }: { stream: MediaStream | null, isLocal?: boolean, filter?: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !stream) return;
+
+    if (el.srcObject !== stream) {
+      console.log(`[VideoPeer] Assigning stream ${stream.id} to video element (Local: ${isLocal})`);
+      el.srcObject = stream;
+
+      const playPromise = el.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error(`[VideoPeer] Auto-play failed: ${error}`);
+          setDebugInfo('Autoplay bloqueado. Clique para iniciar.');
+        });
+      }
+    }
+
+    // Monitoramento de trilhas
+    const interval = setInterval(() => {
+      if (!stream.active) setDebugInfo('Stream inativo');
+      else if (stream.getVideoTracks().length === 0) setDebugInfo('Sem vídeo');
+      else if (el.videoWidth === 0) setDebugInfo('Carregando vídeo...');
+      else setDebugInfo('');
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [stream]);
+
+  return (
+    <div className="video-cell">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal} // Local sempre mutado para evitar feedback
+        style={isLocal ? { transform: 'scaleX(-1)' } : {}}
+        className={`filter-${filter}`}
+        onClick={() => {
+          if (videoRef.current?.paused) videoRef.current.play();
+        }}
+      />
+      {debugInfo && (
+        <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255,0,0,0.7)', padding: '5px', fontSize: '10px', borderRadius: '4px' }}>
+          {debugInfo}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>(Page.LOGIN);
@@ -375,33 +424,9 @@ function App() {
 
       <main className={`video-container ${isGrid4x ? 'grid-2-2' : 'grid-1-1'} ${chatState.status === 'skipping' ? 'skipping' : ''}`}>
         {remotePeers.map(peer => (
-          <div key={peer.id} className="video-cell">
-            <video
-              ref={el => {
-                if (el && peer.stream) {
-                  el.srcObject = peer.stream;
-                  el.play().catch(e => console.error("Remote video play error:", e));
-                }
-              }}
-              autoPlay
-              playsInline
-              className={`filter-${activeFilter}`}
-            />
-          </div>
+          <VideoPeer key={peer.id} stream={peer.stream} filter={activeFilter} />
         ))}
-        <div className="video-cell">
-          <video
-            ref={localVideoRef}
-            autoPlay muted playsInline
-            style={{ transform: 'scaleX(-1)' }}
-            className={`filter-${activeFilter}`}
-          />
-          {!chatState.isVideoEnabled && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-              <i className="fas fa-video-slash fa-2x text-zinc-800"></i>
-            </div>
-          )}
-        </div>
+        <VideoPeer stream={localStreamRef.current} isLocal={true} filter={activeFilter} />
       </main>
 
       {chatState.status === 'searching' && (
