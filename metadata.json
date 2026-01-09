@@ -1,0 +1,9 @@
+{
+  "name": "Random online",
+  "description": "A dark-themed, anonymous video chat application connecting users randomly worldwide using WebRTC.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
